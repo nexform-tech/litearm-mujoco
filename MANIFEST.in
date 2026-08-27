@@ -1,0 +1,2 @@
+include src/litearm_mujoco/assets/*.xml
+include src/litearm_mujoco/assets/meshes/*.STL

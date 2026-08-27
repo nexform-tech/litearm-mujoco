@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "litearm-mujoco"
+version = "0.3.0"
+description = "LiteArm 七轴机械臂 MuJoCo 仿真 — API 与 litearm-python 兼容，支持仿真与实体同时运动"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "LicenseRef-Proprietary"
+authors = [{ name = "hzh" }]
+keywords = ["robotics", "robot-arm", "litearm", "mujoco", "simulation"]
+dependencies = [
+    "mujoco>=3.0",
+    "numpy>=1.21",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-timeout"]
+mirror = ["eclipse-zenoh>=1.0", "protobuf>=4.0"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"litearm_mujoco" = ["assets/*.xml", "assets/meshes/*.STL"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+addopts = "-v"

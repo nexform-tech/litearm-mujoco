@@ -1,0 +1,1 @@
+"""Built-in MJCF model and mesh assets for LiteArm 7-DOF."""
