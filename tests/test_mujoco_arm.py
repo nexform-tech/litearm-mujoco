@@ -156,6 +156,7 @@ class TestEmergencyStop:
         """clear_stop() clears the stopped flag."""
         arm_headless.request_stop()
         arm_headless.clear_stop()
+        time.sleep(0.01)  # Let sim thread update state cache
         state = arm_headless.get_state()
         assert state["state"] == "ready"
 
