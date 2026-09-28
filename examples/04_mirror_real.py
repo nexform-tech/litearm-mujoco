@@ -3,29 +3,28 @@
 """样例 04 · 镜像模式 — 仿真跟随真实机械臂同步运动
 
 前提:
-  1. 机械臂控制器上 litearm-server 已启动
-  2. 客户端与控制器网络互通
-  3. 客户端已安装 litearm-python (pip install litearm-mujoco[mirror])
+  1. 机械臂通过 USB 直连本机（CDC 串口）
+  2. 客户端已安装 litearm-python
 
 运行:
-  python3 examples/04_mirror_real.py --endpoint tcp/192.168.31.139:7447
+  python3 examples/04_mirror_real.py --port /dev/ttyACM0
+  python3 examples/04_mirror_real.py          # 省略 --port 时自动发现
 """
 import argparse
 import time
 
-from litearm_mujoco import MujocoArm, litearm
+from litearm_mujoco import MujocoArm, litearm_core
 
 
 def main():
     ap = argparse.ArgumentParser(description="仿真镜像真实机械臂")
-    ap.add_argument("--endpoint", default="tcp/192.168.31.139:7447",
-                    help="litearm-server 的 zenoh 端点")
-    ap.add_argument("--arm-id", default="armA", help="Arm 标识")
+    ap.add_argument("--port", default=None,
+                    help="实臂 CDC 串口，如 /dev/ttyACM0（省略则自动发现）")
     args = ap.parse_args()
 
-    # 连接真实机械臂
-    real = litearm.Arm(endpoint=args.endpoint, arm_id=args.arm_id)
-    print(f"[实臂] 已连接 · endpoint={args.endpoint}")
+    # 连接真实机械臂（connect() 会校验固件版本约定）
+    real = litearm_core.Arm(port=args.port).connect()
+    print(f"[实臂] 已连接 · port={args.port or '(自动发现)'}")
 
     # 创建仿真
     sim = MujocoArm(render=True)
@@ -33,12 +32,13 @@ def main():
 
     try:
         time.sleep(1.0)
-        real_state = real.get_state()
+        # get_state() 返回 Msg 信封，取到的那一帧在 .value（还没收到帧时为 None）
+        real_state = real.get_state().value
         if real_state is None:
-            print("[实臂] 未收到状态，检查 server 是否在运行")
+            print("[实臂] 未收到状态，检查串口连接与固件是否在上报")
             return
 
-        q_real = real_state["q"]
+        q_real = real_state.q
         print(f"[实臂] 初始关节角: {[round(x, 3) for x in q_real]}")
 
         # 将仿真初始化为实臂当前姿态
@@ -53,12 +53,12 @@ def main():
 
         while True:
             time.sleep(1)
-            r_state = real.get_state()
+            r_state = real.get_state().value
             s_state = sim.get_state()
             if r_state and s_state:
-                err = max(abs(r_state["q"][i] - s_state["q"][i])
+                err = max(abs(r_state.q[i] - s_state["q"][i])
                           for i in range(7))
-                print(f"  实臂 q[0]={r_state['q'][0]:.4f}  "
+                print(f"  实臂 q[0]={r_state.q[0]:.4f}  "
                       f"仿真 q[0]={s_state['q'][0]:.4f}  "
                       f"误差={err:.4f} rad", end="\r")
 

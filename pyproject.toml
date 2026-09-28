@@ -11,14 +11,17 @@ requires-python = ">=3.10"
 license = "LicenseRef-Proprietary"
 authors = [{ name = "hzh" }]
 keywords = ["robotics", "robot-arm", "litearm", "mujoco", "simulation"]
+# The SDK is a *hard* import (see src/litearm_mujoco/_sdk.py): this package
+# returns the SDK's own Msg/RobotState/CartPlan, so it cannot be simulated
+# away. It is not on PyPI yet, hence the git pin — bump the tag deliberately.
 dependencies = [
     "mujoco>=3.0",
     "numpy>=1.21",
+    "litearm-python @ git+https://github.com/nexform-tech/litearm-python.git@v1.0.0",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-timeout"]
-mirror = ["eclipse-zenoh>=1.0", "protobuf>=4.0"]
 
 [tool.setuptools]
 include-package-data = true

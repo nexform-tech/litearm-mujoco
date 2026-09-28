@@ -1,10 +1,10 @@
 """MujocoArm — MuJoCo simulation of the LiteArm 7-DOF robot.
 
-API-compatible with litearm.Arm. You can swap between real and simulated arms
-without changing your control code:
+API-compatible with litearm_core.Arm. You can swap between real and simulated
+arms without changing your control code:
 
     # Real arm
-    arm = litearm.Arm(endpoint="tcp/192.168.31.139:7447")
+    arm = litearm_core.Arm(port="/dev/ttyACM0").connect()
 
     # Simulation
     arm = MujocoArm()
@@ -25,8 +25,10 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import mujoco
 import numpy as np
 
+from ._sdk import state_q
 from .controller import DEFAULT_KD, DEFAULT_KP, N_JOINTS, JointPIDController, TrajectoryGenerator
 from .kinematics import Kinematics
+from .trajectory import JointTrajectory, TrajectoryFrame
 
 # Path to the default MuJoCo model
 _ASSETS_DIR = Path(__file__).parent / "assets"
@@ -57,7 +59,7 @@ def _resolve_model_path(model_path: Optional[str] = None) -> str:
 class MujocoArm:
     """MuJoCo simulation of LiteArm 7-DOF robot arm.
 
-    API-compatible with litearm.Arm. All motion methods are blocking (they run
+    API-compatible with litearm_core.Arm. All motion methods are blocking (they run
     the simulation until the motion completes), matching the real arm's behavior.
 
     Usage::
@@ -69,8 +71,8 @@ class MujocoArm:
             print(state["q"])
 
         # Mirror real arm
-        import litearm
-        real = litearm.Arm(endpoint="tcp/192.168.31.139:7447")
+        import litearm_core
+        real = litearm_core.Arm(port="/dev/ttyACM0").connect()
         sim = MujocoArm(render=True)
         sim.start()
         sim.mirror_from(real)  # sim follows real arm state
@@ -188,10 +190,11 @@ class MujocoArm:
                 # Mirror mode: read real arm state and set as target
                 if self._mirroring and self._mirror_arm is not None:
                     try:
-                        real_state = self._mirror_arm.get_state()
-                        if real_state and real_state.get("q"):
-                            q_real = np.asarray(real_state["q"], dtype=float)[:self._n_joints]
-                            self._controller.set_target(q_real)
+                        q_real = state_q(self._mirror_arm.get_state())
+                        if q_real:
+                            self._controller.set_target(
+                                np.asarray(q_real[:self._n_joints], dtype=float)
+                            )
                     except Exception:
                         pass
 
@@ -581,14 +584,6 @@ class MujocoArm:
         **kwargs: Any,
     ) -> bool:
         """Load and replay a saved trajectory."""
-        try:
-            from ._litearm.types import JointTrajectory
-        except ImportError:
-            raise ImportError(
-                "play_trajectory with file path requires litearm-mujoco[mirror] dependencies. "
-                "Install with: pip install litearm-mujoco[mirror]"
-            )
-
         if isinstance(trajectory, str):
             traj = JointTrajectory.load(trajectory)
         elif isinstance(trajectory, JointTrajectory):
@@ -609,14 +604,6 @@ class MujocoArm:
         **kwargs: Any,
     ) -> Any:
         """Record a trajectory (simulated)."""
-        try:
-            from ._litearm.types import JointTrajectory, TrajectoryFrame
-        except ImportError:
-            raise ImportError(
-                "record_trajectory requires litearm-mujoco[mirror] dependencies. "
-                "Install with: pip install litearm-mujoco[mirror]"
-            )
-
         self._ensure_running()
 
         if duration_s is None:
@@ -925,13 +912,13 @@ class MujocoArm:
         """Start mirroring the state of a real arm into this simulation.
 
         Args:
-            real_arm: A litearm.Arm instance connected to a real robot.
+            real_arm: A litearm_core.Arm instance connected to a real robot.
             rate_hz: Mirroring update rate (Hz).
 
         Usage::
 
-            import litearm
-            real = litearm.Arm(endpoint="tcp/192.168.31.139:7447")
+            import litearm_core
+            real = litearm_core.Arm(port="/dev/ttyACM0").connect()
             sim = MujocoArm(render=True)
             sim.start()
             sim.mirror_from(real)

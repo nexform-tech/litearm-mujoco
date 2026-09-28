@@ -14,7 +14,7 @@
 import time
 
 from litearm_mujoco import MujocoArm
-from litearm_mujoco._litearm.types import JointTrajectory
+from litearm_mujoco.trajectory import JointTrajectory
 
 
 def main():

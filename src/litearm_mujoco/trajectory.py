@@ -1,10 +1,19 @@
-"""Vendored subset of litearm-python SDK for trajectory types.
+"""Trajectory types for MujocoArm.record_trajectory() / play_trajectory().
 
-This is a minimal subset used by MujocoArm.record_trajectory() and
-play_trajectory() for the JointTrajectory/TrajectoryFrame types.
+This is a **litearm-mujoco simulation extension**, not part of the litearm-python
+API. litearm-python has no portable trajectory type: its motion is planned in
+firmware (a plan comes back as ``CartPlan``) and its only sample series is the
+firmware-side 300 Hz capture exposed by ``arm.log``. Recording a joint-space
+trajectory and persisting it as JSON is something only the simulator can do,
+so these types live here.
 
-For full real-arm communication (DualArm, MirrorMode), the actual
-litearm-python package must be installed separately.
+The shapes were originally borrowed from the legacy ``litearm-python`` v0.1
+``litearm.types`` module, but this is a reduced copy rather than a vendored
+drop-in: ``TrajectoryFrame`` carries no ``tau``, ``JointTrajectory`` carries no
+``created_at`` / ``robot_serial`` / ``config_checksum_sha256``, ``t`` is not
+validated for monotonicity, and ``sample_rate_hz`` defaults to ``100.0`` rather
+than ``None``. JSON written by this module is readable by the legacy SDK only
+to the extent of the shared ``{"t", "q", "dq"}`` subset.
 """
 from __future__ import annotations
 
