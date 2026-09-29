@@ -1,0 +1,82 @@
+name: Devcontainer image
+
+# Builds and publishes the pre-built dev container image referenced by
+# .devcontainer/devcontainer.json. Pull requests build the image and run the
+# test suite inside it; pushes to the default branch publish it to GHCR.
+on:
+  pull_request:
+    paths:
+      - ".devcontainer/**"
+      - "pyproject.toml"
+      - "setup.cfg"
+      - ".github/workflows/devcontainer.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - ".devcontainer/**"
+      - "pyproject.toml"
+      - "setup.cfg"
+      - ".github/workflows/devcontainer.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  actions: read # read the build cache
+
+concurrency:
+  group: devcontainer-${{ github.ref }}
+  cancel-in-progress: true # a superseded run is pointless
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ${{ github.repository }}-dev
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Pull requests: build the image and run the test suite inside it, so a
+      # broken dev environment cannot reach the default branch.
+      - name: Build image
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .devcontainer/Dockerfile
+          load: true
+          cache-from: type=gha,scope=devcontainer
+          tags: litearm-mujoco-dev:test
+
+      - name: Run the test suite inside the image
+        if: github.event_name == 'pull_request'
+        run: docker run --rm litearm-mujoco-dev:test pytest -q
+
+      # Default branch and manual runs: publish the image to GHCR.
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .devcontainer/Dockerfile
+          push: true
+          cache-from: type=gha,scope=devcontainer
+          cache-to: type=gha,mode=max,scope=devcontainer
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ github.sha }}
