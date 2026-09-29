@@ -158,6 +158,69 @@ PID 控制器包含积分抗饱和（anti-windup）。
 - `eclipse-zenoh>=1.0`
 - `protobuf>=4.0`
 
+## Dev Container（开发容器）
+
+本节面向不想在宿主机上安装 Python 和 MuJoCo 的开发者。预构建的开发容器镜像
+内置 Python 3.12、MuJoCo 及其 OpenGL 运行库，并已安装本包（含 `dev` 与
+`mirror` 附加依赖）。
+
+### 环境要求
+
+- Docker Desktop（Windows、macOS）或 Docker Engine（Linux）
+- VS Code 及 Dev Containers 扩展
+
+### 打开容器
+
+1. 在 VS Code 中打开本仓库目录。
+2. 按 `F1` 运行 **Dev Containers: Reopen in Container**。
+
+VS Code 会先拉取预构建镜像
+`ghcr.io/nexform-tech/litearm-mujoco-dev:latest`；当拉取失败时（宿主机未登录
+`ghcr.io` 或没有网络），VS Code 会基于 `.devcontainer/Dockerfile` 在本地构建
+同样的镜像。两条路径得到相同的环境。
+
+不要在容器内以 root 身份执行 `pip install`。容器用户是 `vscode`，用
+`sudo pip install` 会把 root 属主的文件写进挂载的工作区，可能破坏可编辑安装。
+
+镜像按挂载的工作区路径预装了本包，因此修改源码后可编辑安装仍然生效。如果
+你修改了 `pyproject.toml` 中的依赖而镜像早于该修改，请在容器内刷新安装：
+
+```bash
+pip install -e ".[dev,mirror]"
+```
+
+### 验证环境
+
+```bash
+pytest -q
+python3 examples/01_hello_sim.py
+```
+
+### 使用 MuJoCo 查看器
+
+只有当容器能访问显示器时，示例才会打开查看器窗口。没有显示器时示例照常
+运行：物理循环正常工作，并打印 "Running headless" 警告。
+
+在 Windows 上安装 VcXsrv 并关闭访问控制，然后在终端会话中设置显示：
+
+```bash
+export DISPLAY=host.docker.internal:0
+python3 examples/02_movej_sim.py
+```
+
+在 Linux 上把 `DISPLAY` 指向宿主机显示（如 `export DISPLAY=:0`）。如果窗口
+仍无法打开，可尝试 `export MUJOCO_GL=egl`。
+
+不要把 `DISPLAY` 的值提交到 `devcontainer.json`。显示环境是宿主机的属性，
+不是仓库的属性。
+
+### 镜像如何构建
+
+`.github/workflows/devcontainer.yml` 会在每个涉及 `.devcontainer/`、
+`pyproject.toml` 或 `setup.cfg` 的拉取请求上构建镜像并在其中运行测试套件，
+变更合入 `main` 后向 GHCR 推送 `latest` 和一个提交标签。如需手动重建，在
+GitHub 上打开该工作流并点击 **Run workflow**。
+
 ## 已知限制
 
 - 控制器为关节空间 PD + 重力/科氏力前馈，未包含完整计算力矩前馈与摩擦补偿

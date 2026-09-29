@@ -143,6 +143,13 @@ python3 examples/05_dual_control.py --endpoint tcp/192.168.31.139:7447
 
 ## 开发
 
+推荐使用开发容器：在 VS Code 中打开本目录，按 `F1` 运行
+**Dev Containers: Reopen in Container**，即可获得预装 Python 3.12、MuJoCo 及
+全部附加依赖的现成环境。详见开发者指南中的
+[Dev Container](docs/DEVELOPER_GUIDE.md#dev-container)。
+
+不使用 Docker 时：
+
 ```bash
 pip install -e ".[dev]"
 python -m pytest tests/ -v

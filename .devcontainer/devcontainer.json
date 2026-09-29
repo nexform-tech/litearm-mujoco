@@ -1,0 +1,36 @@
+// Development environment for litearm-mujoco: Python 3.12, MuJoCo with the
+// OpenGL runtime libraries, and the project installed with the dev and mirror
+// extras. Open the repository folder and press F1, then run
+// "Dev Containers: Reopen in Container".
+{
+    "name": "litearm-mujoco simulation",
+    // The pre-built image is used when it can be pulled; otherwise VS Code
+    // builds the same image locally from the Dockerfile. The image is
+    // published by .github/workflows/devcontainer.yml.
+    "image": "ghcr.io/nexform-tech/litearm-mujoco-dev:latest",
+    "build": {
+        "context": "..",
+        "dockerfile": ".devcontainer/Dockerfile"
+    },
+    "workspaceFolder": "/workspaces/litearm-mujoco",
+    "remoteUser": "vscode",
+    "runArgs": ["--init"],
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-python.debugpy",
+                "tamasfe.even-better-toml"
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "/usr/local/bin/python",
+                "python.testing.pytestEnabled": true,
+                "python.testing.pytestArgs": ["tests"],
+                "python.terminal.activateEnvironment": false,
+                "files.eol": "\n"
+            }
+        }
+    }
+}

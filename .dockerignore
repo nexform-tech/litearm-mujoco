@@ -1,0 +1,12 @@
+# Keep the dev container build context small: only sources and assets are
+# copied into the image, everything below is either provided by the runtime
+# mount or irrelevant inside the container.
+.git
+.github
+__pycache__
+*.pyc
+*.egg-info
+.pytest_cache
+.mypy_cache
+dist
+build
