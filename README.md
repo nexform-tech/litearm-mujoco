@@ -1,7 +1,7 @@
 # litearm-mujoco
 
 Official MuJoCo-based simulation environment for the **LiteArm 7-DOF robotic arm**.
-Fully API-compatible with `litearm-python` — swap `Arm` with `MujocoArm` and your
+API-compatible with `litearm-python` — swap `Arm` with `MujocoArm` and your
 control code runs identically in simulation and on hardware.
 
 ## Features
@@ -10,25 +10,30 @@ control code runs identically in simulation and on hardware.
 - 🖥️ **Three operating modes** — Standalone simulation / Mirror tracking / Dual control
 - 🎮 **Native MuJoCo rendering** — Real-time visualization of arm motion
 - 🧪 **No hardware required** — Develop and test motion logic without a physical arm
-- 🐍 **Pure Python** — Zero compilation. `pip install` and go.
+- 🐍 **Pure Python** — Zero compilation.
 
 ## Installation
 
 ```bash
-# Standalone simulation (no hardware needed)
 pip install litearm-mujoco
-
-# Mirror / Dual control mode (requires hardware connectivity)
-pip install "litearm-mujoco[mirror]"
 ```
+
+The SDK, [`litearm-python`](https://github.com/nexform-tech/litearm-python), is
+a hard dependency and pip installs it for you — this package returns the SDK's
+own `Msg` / `RobotState` / `CartPlan` types, so it cannot be simulated away.
+
+> ⚠ The SDK is not published on PyPI yet, so it is pinned to a git tag in
+> `pyproject.toml`. `git` must be on your `PATH` for the install to resolve.
 
 Or from source:
 
 ```bash
-git clone https://gitee.com/nexform-tech/litearm-mujoco.git
+git clone https://github.com/nexform-tech/litearm-mujoco.git
 cd litearm-mujoco
 pip install -e ".[dev]"
 ```
+
+Standalone simulation needs no hardware.
 
 ## Quick Start
 
@@ -53,10 +58,10 @@ with MujocoArm(render=True) as arm:
 ### Mode 2 — Mirror Mode (sim follows real arm)
 
 ```python
-from litearm_mujoco import litearm, MujocoArm
+from litearm_mujoco import litearm_core, MujocoArm
 
-# Connect to real arm
-real = litearm.Arm(endpoint="tcp/192.168.31.139:7447")
+# Connect to the real arm over USB CDC (omit port= to auto-discover)
+real = litearm_core.Arm(port="/dev/ttyACM0").connect()
 
 # Create simulation and start mirroring
 sim = MujocoArm(render=True)
@@ -69,7 +74,7 @@ sim.mirror_from(real)  # sim tracks real arm in real time
 ```python
 from litearm_mujoco import DualArm
 
-dual = DualArm(real_endpoint="tcp/192.168.31.139:7447", render=True)
+dual = DualArm(real_port="/dev/ttyACM0", render=True)
 dual.start()
 
 # One command — both arms move!
@@ -84,7 +89,7 @@ dual.close()
 ┌─────────────────────────────────────────────────┐
 │               Your Python Program                │
 │                                                   │
-│   arm = MujocoArm()  ← can replace litearm.Arm   │
+│   arm = MujocoArm()  ← can replace litearm_core.Arm│
 │   arm.movej(...)                                  │
 │   arm.get_state()                                 │
 └──────────┬────────────────────┬─────────────────┘
@@ -92,12 +97,13 @@ dual.close()
     ┌──────▼──────┐      ┌─────▼──────────┐
     │ Standalone   │      │ Dual / Mirror   │
     │ Simulation   │      │                 │
-    │              │      │ MuJoCo + Zenoh  │
-    │ MuJoCo       │      │ → litearm-      │
-    │ physics      │      │   server        │
-    │ engine       │      │                 │
-    │ PID ctrl     │      │ Real + Sim      │
-    │ FK/IK        │      │ together        │
+    │              │      │ MuJoCo +        │
+    │ MuJoCo       │      │ litearm-python    │
+    │ physics      │      │ → USB CDC       │
+    │ engine       │      │ → STM32 fw      │
+    │ PID ctrl     │      │                 │
+    │ FK/IK        │      │ Real + Sim      │
+    │              │      │ together        │
     └──────────────┘      └─────────────────┘
 ```
 
@@ -115,13 +121,17 @@ dual.close()
 python3 examples/01_hello_sim.py
 python3 examples/02_movej_sim.py
 python3 examples/03_trajectory.py
-python3 examples/04_mirror_real.py --endpoint tcp/192.168.31.139:7447
-python3 examples/05_dual_control.py --endpoint tcp/192.168.31.139:7447
+python3 examples/04_mirror_real.py --port /dev/ttyACM0
+python3 examples/05_dual_control.py --port /dev/ttyACM0
 ```
 
 ## API Reference
 
-| litearm.Arm | MujocoArm | Notes |
+> ⚠ This table describes the surface **before** the `litearm-python` realignment.
+> `MujocoArm`'s own methods still carry the old names (`movel`/`movec`/`movep`);
+> aligning them to `move_l`/`move_c`/`move_path` is the follow-up commit.
+
+| litearm_core.Arm | MujocoArm | Notes |
 |-------------|-----------|-------|
 | `Arm(endpoint=...)` | `MujocoArm(render=True)` | Constructor |
 | `movej(q, speed)` | `movej(q, speed)` | ✅ Identical |

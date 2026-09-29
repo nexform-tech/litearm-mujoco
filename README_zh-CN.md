@@ -1,33 +1,38 @@
 # litearm-mujoco
 
-LiteArm 七轴机械臂的官方 MuJoCo 仿真环境。与 `litearm-python` API 完全兼容 —
+LiteArm 七轴机械臂的官方 MuJoCo 仿真环境。与 `litearm-python` API 兼容 —
 将 `Arm` 替换为 `MujocoArm`，你的控制代码即可在仿真和真机上无差别运行。
 
 ## 特性
 
-- 🔄 **API 无缝替换** — 与 `litearm-python` 接口完全一致。`MujocoArm` 可直接替换 `Arm`。
+- 🔄 **API 无缝替换** — 与 `litearm-python` 接口一致。`MujocoArm` 可直接替换 `Arm`。
 - 🖥️ **三种操作模式** — 独立仿真 / 镜像跟随 / 双控同步
 - 🎮 **原生 MuJoCo 渲染** — 机械臂运动实时可视化
 - 🧪 **无需硬件** — 不连接物理机械臂也可以开发和测试运动逻辑
-- 🐍 **纯 Python** — 零编译。`pip install` 即用。
+- 🐍 **纯 Python** — 零编译。
 
 ## 安装
 
 ```bash
-# 独立仿真（无需硬件通信）
 pip install litearm-mujoco
-
-# 镜像 / 双控模式（需要硬件通信）
-pip install "litearm-mujoco[mirror]"
 ```
+
+SDK —— [`litearm-python`](https://github.com/nexform-tech/litearm-python) —— 是硬依赖，
+pip 会自己装上。本包返回的是 SDK 自己的 `Msg` / `RobotState` / `CartPlan` 类型，
+所以它没法被仿真替代掉。
+
+> ⚠ SDK 还没发布到 PyPI，因此 `pyproject.toml` 把它钉在一个 git tag 上。
+> 需要 `PATH` 上有 `git`，安装才能解析成功。
 
 或从源码安装：
 
 ```bash
-git clone https://gitee.com/nexform-tech/litearm-mujoco.git
+git clone https://github.com/nexform-tech/litearm-mujoco.git
 cd litearm-mujoco
 pip install -e ".[dev]"
 ```
+
+独立仿真不需要任何硬件。
 
 ## 快速开始
 
@@ -52,10 +57,10 @@ with MujocoArm(render=True) as arm:
 ### 模式 2 — 镜像模式（仿真跟随实臂）
 
 ```python
-from litearm_mujoco import litearm, MujocoArm
+from litearm_mujoco import litearm_core, MujocoArm
 
-# 连接真实机械臂
-real = litearm.Arm(endpoint="tcp/192.168.31.139:7447")
+# 连接真实机械臂（USB CDC 直连；省略 port= 则自动发现）
+real = litearm_core.Arm(port="/dev/ttyACM0").connect()
 
 # 创建仿真并启动镜像
 sim = MujocoArm(render=True)
@@ -68,7 +73,7 @@ sim.mirror_from(real)  # 仿真实时跟随实臂运动
 ```python
 from litearm_mujoco import DualArm
 
-dual = DualArm(real_endpoint="tcp/192.168.31.139:7447", render=True)
+dual = DualArm(real_port="/dev/ttyACM0", render=True)
 dual.start()
 
 # 一条命令 — 实臂和仿真同时运动！
@@ -83,7 +88,7 @@ dual.close()
 ┌─────────────────────────────────────────────────┐
 │                  你的 Python 程序                │
 │                                                   │
-│   arm = MujocoArm()  ← 可替换为 litearm.Arm      │
+│   arm = MujocoArm()  ← 可替换为 litearm_core.Arm │
 │   arm.movej(...)                                  │
 │   arm.get_state()                                 │
 └──────────┬────────────────────┬─────────────────┘
@@ -91,11 +96,12 @@ dual.close()
     ┌──────▼──────┐      ┌─────▼──────────┐
     │ 独立仿真     │      │ 双控 / 镜像     │
     │             │      │                │
-    │ MuJoCo      │      │ MuJoCo + Zenoh │
-    │ 物理引擎    │      │ → litearm-     │
-    │             │      │   server       │
-    │ PID 控制器  │      │                │
-    │ FK/IK      │      │  实臂 + 仿真   │
+    │ MuJoCo      │      │ MuJoCo +       │
+    │ 物理引擎    │      │ litearm-python   │
+    │             │      │ → USB CDC      │
+    │ PID 控制器  │      │ → STM32 固件   │
+    │ FK/IK      │      │                │
+    │             │      │  实臂 + 仿真   │
     │             │      │  同时运动      │
     └─────────────┘      └────────────────┘
 ```
@@ -114,13 +120,17 @@ dual.close()
 python3 examples/01_hello_sim.py
 python3 examples/02_movej_sim.py
 python3 examples/03_trajectory.py
-python3 examples/04_mirror_real.py --endpoint tcp/192.168.31.139:7447
-python3 examples/05_dual_control.py --endpoint tcp/192.168.31.139:7447
+python3 examples/04_mirror_real.py --port /dev/ttyACM0
+python3 examples/05_dual_control.py --port /dev/ttyACM0
 ```
 
 ## API 对照
 
-| litearm.Arm | MujocoArm | 说明 |
+> ⚠ 下表描述的是 **对齐 litearm-python 之前** 的方法面。`MujocoArm` 自身的方法
+> 仍是旧名字（`movel`/`movec`/`movep`），改成 `move_l`/`move_c`/`move_path`
+> 是后续那次提交的事。
+
+| litearm_core.Arm | MujocoArm | 说明 |
 |-------------|-----------|------|
 | `Arm(endpoint=...)` | `MujocoArm(render=True)` | 构造实例 |
 | `movej(q, speed)` | `movej(q, speed)` | ✅ 完全一致 |

@@ -3,15 +3,15 @@
 """样例 05 · 双控模式 — 同时控制真实机械臂和仿真
 
 前提:
-  1. 机械臂控制器上 litearm-server 已启动
-  2. 客户端与控制器网络互通
-  3. 客户端已安装 litearm-python (pip install litearm-mujoco[mirror])
+  1. 机械臂通过 USB 直连本机（CDC 串口）
+  2. 客户端已安装 litearm-python
 
 运行:
-  python3 examples/05_dual_control.py --endpoint tcp/192.168.31.139:7447
+  python3 examples/05_dual_control.py --port /dev/ttyACM0
+  python3 examples/05_dual_control.py          # 省略 --port 时自动发现
 
 互动模式（演示后保持窗口，可输入关节目标）:
-  python3 examples/05_dual_control.py --endpoint tcp/192.168.31.139:7447 --interactive
+  python3 examples/05_dual_control.py --port /dev/ttyACM0 --interactive
 """
 import argparse
 import time
@@ -21,14 +21,14 @@ from litearm_mujoco import DualArm
 
 def main():
     ap = argparse.ArgumentParser(description="双控：实臂+仿真同时运动")
-    ap.add_argument("--endpoint", default="tcp/192.168.31.139:7447",
-                    help="litearm-server 的 zenoh 端点")
+    ap.add_argument("--port", default=None,
+                    help="实臂 CDC 串口，如 /dev/ttyACM0（省略则自动发现）")
     ap.add_argument("--interactive", "-i", action="store_true",
                     help="演示后保持仿真窗口，输入关节目标交互控制")
     args = ap.parse_args()
 
     dual = DualArm(
-        real_endpoint=args.endpoint,
+        real_port=args.port,
         render=True,
         mirror_first=True,
     )
@@ -37,24 +37,25 @@ def main():
     try:
         time.sleep(1.0)
 
-        real_state = dual.get_real_state()
+        # get_real_state() 返回 Msg 信封，取到的那一帧在 .value
+        real_state = dual.get_real_state().value
         if real_state is None:
-            print("[实臂] 未收到状态，检查 server 是否在运行")
+            print("[实臂] 未收到状态，检查串口连接与固件是否在上报")
             return
 
-        print(f"[实臂] 当前关节角: {[round(x, 3) for x in real_state['q']]}")
+        print(f"[实臂] 当前关节角: {[round(x, 3) for x in real_state.q]}")
 
         # ── 双控运动 ──
         print("\n[1] 双控 movej → 舒展构型 (speed=0.2)")
         Q_HOME = [0.0, 0.6, 0.0, -1.2, 0.0, 0.7, 0.0]
-        real_ok, sim_ok = dual.movej(Q_HOME, speed=0.2)
-        print(f"     实臂: {'✅' if real_ok else '❌'}, 仿真: {'✅' if sim_ok else '❌'}")
+        real_state, sim_ok = dual.movej(Q_HOME, speed=0.2)
+        print(f"     实臂: {real_state.mode_name}, 仿真: {'✅' if sim_ok else '❌'}")
 
         time.sleep(0.5)
 
         print("\n[2] 双控 movej → 回零位 (speed=0.2)")
-        real_ok, sim_ok = dual.movej([0.0] * 7, speed=0.2)
-        print(f"     实臂: {'✅' if real_ok else '❌'}, 仿真: {'✅' if sim_ok else '❌'}")
+        real_state, sim_ok = dual.movej([0.0] * 7, speed=0.2)
+        print(f"     实臂: {real_state.mode_name}, 仿真: {'✅' if sim_ok else '❌'}")
 
         print("\n✅ 双控运动完成")
 
@@ -90,8 +91,8 @@ def main():
                         print("  ⚠️ 无法解析，请用空格分隔的数字")
                         continue
                 print(f"  movej -> {[round(x, 2) for x in q]}  speed=0.15 ...")
-                r_ok, s_ok = dual.movej(q, speed=0.15, settle_s=0.8)
-                print(f"  实臂: {'✅' if r_ok else '❌'}, 仿真: {'✅' if s_ok else '❌'}")
+                r_state, s_ok = dual.movej(q, speed=0.15, settle_s=0.8)
+                print(f"  实臂: {r_state.mode_name}, 仿真: {'✅' if s_ok else '❌'}")
         else:
             print("\n👀 仿真窗口保持打开，按 Enter 退出 ...")
             try:
@@ -103,7 +104,7 @@ def main():
         print("\n用户中断")
     finally:
         try:
-            dual.request_stop()
+            dual.emergency_stop()
         except Exception:
             pass
         dual.close()
