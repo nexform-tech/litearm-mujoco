@@ -154,6 +154,13 @@ python3 examples/05_dual_control.py --port /dev/ttyACM0
 
 ## Development
 
+Prefer the dev container: open the folder in VS Code, press `F1`, and run
+**Dev Containers: Reopen in Container** for a ready-to-run environment with
+Python 3.12, MuJoCo, and all extras preinstalled. See
+[Dev Container](docs/DEVELOPER_GUIDE.md#dev-container) in the developer guide.
+
+Without Docker:
+
 ```bash
 pip install -e ".[dev]"
 python -m pytest tests/ -v

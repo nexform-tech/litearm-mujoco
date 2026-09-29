@@ -183,6 +183,76 @@ integral anti-windup.
 ### Dev
 - `pytest`, `pytest-timeout`
 
+## Dev Container
+
+This section is for developers who want the full simulation environment without
+installing Python and MuJoCo on the host. A pre-built dev container image ships
+Python 3.12, MuJoCo with its OpenGL runtime libraries, and this package
+installed with the `dev` and `mirror` extras.
+
+### Requirements
+
+- Docker Desktop (Windows, macOS) or Docker Engine (Linux)
+- VS Code with the Dev Containers extension
+
+### Open the container
+
+1. Open the repository folder in VS Code.
+2. Press `F1` and run **Dev Containers: Reopen in Container**.
+
+VS Code first pulls the pre-built image
+`ghcr.io/nexform-tech/litearm-mujoco-dev:latest`. When the pull fails — no
+`ghcr.io` login on the host, or no network — VS Code builds the same image
+locally from `.devcontainer/Dockerfile`. Both paths end in the same environment.
+
+Do not run `pip install` as root inside the container. The container user is
+`vscode`; `sudo pip install` writes root-owned files into the mounted workspace
+and can break the editable install.
+
+The image preinstalls the package against the mounted workspace path, so the
+editable install keeps working as you edit the source. If you changed
+dependencies in `pyproject.toml` and the image predates the change, refresh the
+install inside the container:
+
+```bash
+pip install -e ".[dev,mirror]"
+```
+
+### Verify the environment
+
+```bash
+pytest -q
+python3 examples/01_hello_sim.py
+```
+
+### Using the MuJoCo viewer
+
+The examples open a viewer window only when the container can reach a display.
+Without one they still run: the physics loop works and the arm prints a
+"Running headless" warning.
+
+On Windows, install VcXsrv and start it with access control disabled, then set
+the display for your terminal session:
+
+```bash
+export DISPLAY=host.docker.internal:0
+python3 examples/02_movej_sim.py
+```
+
+On Linux, point `DISPLAY` at the host display (for example `export DISPLAY=:0`).
+If the window still fails to open, try `export MUJOCO_GL=egl`.
+
+Do not commit a `DISPLAY` value to `devcontainer.json`. The display is a
+property of the host machine, not of the repository.
+
+### How the image is built
+
+`.github/workflows/devcontainer.yml` builds the image on every pull request
+that touches `.devcontainer/`, `pyproject.toml`, or `setup.cfg`, runs the test
+suite inside it, and pushes `latest` plus a commit tag to GHCR when the change
+lands on `main`. To rebuild by hand, open the workflow on GitHub and use
+**Run workflow**.
+
 ## Known Limitations
 
 - Controller is joint-space PD + gravity/Coriolis feed-forward. Full
