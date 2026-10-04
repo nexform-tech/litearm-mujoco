@@ -186,24 +186,29 @@ integral anti-windup.
 ## Dev Container
 
 This section is for developers who want the full simulation environment without
-installing Python and MuJoCo on the host. A pre-built dev container image ships
-Python 3.12, MuJoCo with its OpenGL runtime libraries, and this package
-installed with the `dev` and `mirror` extras.
+installing Python and MuJoCo on the host. The dev container image ships Python
+3.12, MuJoCo with its OpenGL runtime libraries, and this package installed with
+the `dev` extra.
 
 ### Requirements
 
-- Docker Desktop (Windows, macOS) or Docker Engine (Linux)
+- Docker Engine (Linux) or Docker Desktop (Windows, macOS)
 - VS Code with the Dev Containers extension
+- On an NVIDIA host: the NVIDIA container toolkit, so the viewer gets hardware
+  OpenGL. Without it, delete the `--gpus`, `--env`, `NVIDIA_DRIVER_CAPABILITIES`
+  and `--device=/dev/dri` entries from `.devcontainer/devcontainer.json` first —
+  otherwise the container does not start at all.
 
 ### Open the container
 
 1. Open the repository folder in VS Code.
 2. Press `F1` and run **Dev Containers: Reopen in Container**.
 
-VS Code first pulls the pre-built image
-`ghcr.io/nexform-tech/litearm-mujoco-dev:latest`. When the pull fails — no
-`ghcr.io` login on the host, or no network — VS Code builds the same image
-locally from `.devcontainer/Dockerfile`. Both paths end in the same environment.
+VS Code builds the image from `.devcontainer/Dockerfile`, reusing the layers of
+the published `ghcr.io/nexform-tech/litearm-mujoco-dev:latest` as a build cache.
+Once that image matches your checkout the build is a cache hit and finishes in
+seconds. Without a `ghcr.io` login it logs a warning and builds from scratch;
+either way the container ends up in the same environment.
 
 Do not run `pip install` as root inside the container. The container user is
 `vscode`; `sudo pip install` writes root-owned files into the mounted workspace
@@ -215,7 +220,7 @@ dependencies in `pyproject.toml` and the image predates the change, refresh the
 install inside the container:
 
 ```bash
-pip install -e ".[dev,mirror]"
+pip install -e ".[dev]"
 ```
 
 ### Verify the environment
@@ -227,31 +232,67 @@ python3 examples/01_hello_sim.py
 
 ### Using the MuJoCo viewer
 
-The examples open a viewer window only when the container can reach a display.
-Without one they still run: the physics loop works and the arm prints a
-"Running headless" warning.
+The examples open a GLFW window, which needs an X display. The container
+forwards the host's `DISPLAY` and mounts `/tmp/.X11-unix`, so on a Linux host
+with a running X session the window opens with no extra setup. Check the display
+before suspecting anything else:
 
-On Windows, install VcXsrv and start it with access control disabled, then set
-the display for your terminal session:
+```bash
+xdpyinfo > /dev/null && echo "display reachable"
+```
+
+If `xdpyinfo` fails, the container cannot see the display: the X server has not
+authorized it. Grant access once per login session on the **host**:
+
+```bash
+xhost +si:localuser:$USER
+```
+
+If `xdpyinfo` succeeds, the display is fine and GL is not: MuJoCo renders
+through whichever GPU serves the X session, which on a hybrid-graphics laptop
+is usually the integrated one. `nvidia-smi` inside the container reports
+whether the NVIDIA GPU is visible at all.
+
+On Windows and macOS there is no X11 socket to mount. Run an X server (VcXsrv,
+or WSLg under WSL) and point `DISPLAY` at it from the container terminal:
 
 ```bash
 export DISPLAY=host.docker.internal:0
 python3 examples/02_movej_sim.py
 ```
 
-On Linux, point `DISPLAY` at the host display (for example `export DISPLAY=:0`).
-If the window still fails to open, try `export MUJOCO_GL=egl`.
+`devcontainer.json` stores no display value: it forwards `${localEnv:DISPLAY}`,
+read from the host at start-up, so the file stays machine-independent.
 
-Do not commit a `DISPLAY` value to `devcontainer.json`. The display is a
-property of the host machine, not of the repository.
+**Do not** reach for `MUJOCO_GL` when the window does not open. It selects the
+backend for offscreen rendering (`mujoco.Renderer`) and has no effect on the
+viewer, which is a GLFW window.
+
+On a host with no display at all — a headless server, or VS Code Remote over
+SSH — the examples cannot open their window: GLFW fails inside MuJoCo's C layer
+and the process exits with status 1, with nothing a Python `except` can catch.
+The image ships `xvfb` for this case:
+
+```bash
+xvfb-run -a python3 examples/02_movej_sim.py
+```
+
+The window opens on a virtual display and the example runs to completion, but
+the process then dies with SIGSEGV (exit 139) while GLFW tears the window down.
+Treat a 139 from `xvfb-run` as teardown noise rather than as a failure of the
+example, and do not put it in CI.
+
+The test suite needs none of this: every test runs with `render=False`.
 
 ### How the image is built
 
-`.github/workflows/devcontainer.yml` builds the image on every pull request
-that touches `.devcontainer/`, `pyproject.toml`, or `setup.cfg`, runs the test
-suite inside it, and pushes `latest` plus a commit tag to GHCR when the change
-lands on `main`. To rebuild by hand, open the workflow on GitHub and use
-**Run workflow**.
+`.github/workflows/devcontainer.yml` builds the image through the Dev Container
+CLI — the same code path VS Code uses — so a `devcontainer.json` that cannot be
+resolved fails CI instead of failing in your editor. It runs on every pull
+request that touches the container definition, the packaging metadata or the
+sources, runs the test suite inside the built image, and pushes `latest` plus a
+commit tag to GHCR on every push to `main`. To rebuild by hand, open the
+workflow on GitHub and use **Run workflow**.
 
 ## Known Limitations
 
