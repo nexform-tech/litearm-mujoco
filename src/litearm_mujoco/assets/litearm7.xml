@@ -1,4 +1,4 @@
-<!-- litearm7.xml — 由真实 LiteArm URDF（litearm_urdf.urdf）生成，运动学+网格+质量与真机对齐。 -->
+<!-- litearm7.xml — 由真实 LiteArm URDF（litearm_description.urdf）生成，运动学+网格+质量与真机对齐。 -->
 <mujoco model="litearm7">
   <compiler angle="radian" eulerseq="XYZ" autolimits="true" />
   <option timestep="0.002" gravity="0 0 -9.81" />
