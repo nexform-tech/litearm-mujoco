@@ -1,20 +1,47 @@
-// Development environment for litearm-mujoco: Python 3.12, MuJoCo with the
-// OpenGL runtime libraries, and the project installed with the dev and mirror
-// extras. Open the repository folder and press F1, then run
+// Development environment for litearm-mujoco: Python 3.12, MuJoCo with its
+// OpenGL/X11 runtime libraries, and this package installed with the dev extra.
+// Open the repository folder in VS Code, press F1, and run
 // "Dev Containers: Reopen in Container".
 {
     "name": "litearm-mujoco simulation",
-    // The pre-built image is used when it can be pulled; otherwise VS Code
-    // builds the same image locally from the Dockerfile. The image is
-    // published by .github/workflows/devcontainer.yml.
-    "image": "ghcr.io/nexform-tech/litearm-mujoco-dev:latest",
+
+    // Built from the Dockerfile in this folder. `cacheFrom` reuses the layers
+    // published to GHCR by .github/workflows/devcontainer.yml, which makes the
+    // build a cache hit once the image is current. It is only a hint: when the
+    // reference cannot be pulled (no GHCR login, no network) Docker logs a
+    // warning and builds from scratch instead of failing.
+    //
+    // `dockerfile` is resolved relative to this file, so it must not repeat the
+    // `.devcontainer/` prefix; `context` is resolved the same way.
     "build": {
         "context": "..",
-        "dockerfile": ".devcontainer/Dockerfile"
+        "dockerfile": "Dockerfile",
+        "cacheFrom": "ghcr.io/nexform-tech/litearm-mujoco-dev:latest"
     },
     "workspaceFolder": "/workspaces/litearm-mujoco",
     "remoteUser": "vscode",
-    "runArgs": ["--init"],
+
+    // Forward the host display so the MuJoCo viewer can open. The value is read
+    // from the host at start-up; no machine-specific path is stored here.
+    "containerEnv": {
+        "DISPLAY": "${localEnv:DISPLAY}"
+    },
+    "mounts": [
+        // X11 socket for Linux hosts. Windows and macOS developers reach their
+        // X server over TCP instead and set DISPLAY in the terminal; see
+        // docs/DEVELOPER_GUIDE.md.
+        "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind"
+    ],
+    "runArgs": [
+        "--init",
+        // Hardware OpenGL. `graphics` is not part of the NVIDIA container
+        // toolkit's default capability set, so it has to be requested.
+        // On a machine without the NVIDIA container toolkit or without
+        // /dev/dri, drop the three flags below or the container will not start.
+        "--gpus", "all",
+        "--env", "NVIDIA_DRIVER_CAPABILITIES=all",
+        "--device=/dev/dri"
+    ],
 
     "customizations": {
         "vscode": {

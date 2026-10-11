@@ -1,37 +1,47 @@
 name: Devcontainer image
 
-# Builds and publishes the pre-built dev container image referenced by
-# .devcontainer/devcontainer.json. Pull requests build the image and run the
-# test suite inside it; pushes to the default branch publish it to GHCR.
+# Builds the image behind .devcontainer/devcontainer.json. Pull requests build
+# it and run the test suite inside it; pushes to the default branch publish it
+# to GHCR so that developers get a cache hit instead of a local build.
+#
+# The build goes through the Dev Container CLI rather than `docker build`, so
+# that the image a pull request validates is the one devcontainer.json actually
+# resolves -- a wrong `dockerfile` path or invalid JSON fails here.
 on:
   pull_request:
     paths:
       - ".devcontainer/**"
+      - ".dockerignore"
       - "pyproject.toml"
       - "setup.cfg"
+      - "setup.py"
+      - "MANIFEST.in"
+      - "src/**"
+      - "tests/**"
+      - "examples/**"
       - ".github/workflows/devcontainer.yml"
   push:
+    # No path filter: the image bakes in the sources, so every merge has to
+    # republish or ":latest" silently goes stale.
     branches:
       - main
-    paths:
-      - ".devcontainer/**"
-      - "pyproject.toml"
-      - "setup.cfg"
-      - ".github/workflows/devcontainer.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
-  actions: read # read the build cache
 
 concurrency:
   group: devcontainer-${{ github.ref }}
   cancel-in-progress: true # a superseded run is pointless
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE: ${{ github.repository }}-dev
+  # Pinned: the CLI defines the devcontainer.json semantics the image is built
+  # with, so a new minor release must not change CI on its own.
+  DEVCONTAINER_CLI: "@devcontainers/cli@0.89.0"
+  IMAGE: ghcr.io/${{ github.repository }}-dev
+  CACHE_FROM: type=gha,scope=devcontainer
+  CACHE_TO: type=gha,mode=max,scope=devcontainer
 
 jobs:
   build:
@@ -43,40 +53,37 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Pull requests: build the image and run the test suite inside it, so a
-      # broken dev environment cannot reach the default branch.
-      - name: Build image
-        if: github.event_name == 'pull_request'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: .devcontainer/Dockerfile
-          load: true
-          cache-from: type=gha,scope=devcontainer
-          tags: litearm-mujoco-dev:test
-
-      - name: Run the test suite inside the image
-        if: github.event_name == 'pull_request'
-        run: docker run --rm litearm-mujoco-dev:test pytest -q
-
-      # Default branch and manual runs: publish the image to GHCR.
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Pull requests: build the image and run the test suite inside it, so a
+      # broken dev environment cannot reach the default branch.
+      - name: Build image
+        if: github.event_name == 'pull_request'
+        run: |
+          npx --yes ${{ env.DEVCONTAINER_CLI }} build \
+            --workspace-folder . \
+            --image-name litearm-mujoco-dev:ci \
+            --cache-from ${{ env.CACHE_FROM }} \
+            --cache-to ${{ env.CACHE_TO }}
+
+      - name: Run the test suite inside the image
+        if: github.event_name == 'pull_request'
+        run: docker run --rm litearm-mujoco-dev:ci pytest -q
+
+      # Default branch and manual runs: publish the image to GHCR.
       - name: Build and push image
         if: github.event_name != 'pull_request'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: .devcontainer/Dockerfile
-          push: true
-          cache-from: type=gha,scope=devcontainer
-          cache-to: type=gha,mode=max,scope=devcontainer
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ github.sha }}
+        run: |
+          npx --yes ${{ env.DEVCONTAINER_CLI }} build \
+            --workspace-folder . \
+            --image-name ${{ env.IMAGE }}:latest \
+            --image-name ${{ env.IMAGE }}:${{ github.sha }} \
+            --cache-from ${{ env.CACHE_FROM }} \
+            --cache-to ${{ env.CACHE_TO }} \
+            --push true
