@@ -175,24 +175,27 @@ PID 控制器包含积分抗饱和（anti-windup）。
 
 ## Dev Container（开发容器）
 
-本节面向不想在宿主机上安装 Python 和 MuJoCo 的开发者。预构建的开发容器镜像
-内置 Python 3.12、MuJoCo 及其 OpenGL 运行库，并已安装本包（含 `dev` 与
-`mirror` 附加依赖）。
+本节面向不想在宿主机上安装 Python 和 MuJoCo 的开发者。开发容器镜像内置
+Python 3.12、MuJoCo 及其 OpenGL 运行库，并已安装本包（含 `dev` 附加依赖）。
 
 ### 环境要求
 
-- Docker Desktop（Windows、macOS）或 Docker Engine（Linux）
+- Docker Engine（Linux）或 Docker Desktop（Windows、macOS）
 - VS Code 及 Dev Containers 扩展
+- NVIDIA 显卡的宿主机还需安装 NVIDIA Container Toolkit，查看器才能用上硬件
+  OpenGL。没有该工具包时，请先删掉 `.devcontainer/devcontainer.json` 中的
+  `--gpus`、`--env NVIDIA_DRIVER_CAPABILITIES` 和 `--device=/dev/dri` 三项，
+  否则容器根本无法启动。
 
 ### 打开容器
 
 1. 在 VS Code 中打开本仓库目录。
 2. 按 `F1` 运行 **Dev Containers: Reopen in Container**。
 
-VS Code 会先拉取预构建镜像
-`ghcr.io/nexform-tech/litearm-mujoco-dev:latest`；当拉取失败时（宿主机未登录
-`ghcr.io` 或没有网络），VS Code 会基于 `.devcontainer/Dockerfile` 在本地构建
-同样的镜像。两条路径得到相同的环境。
+VS Code 会基于 `.devcontainer/Dockerfile` 构建镜像，并把已发布的
+`ghcr.io/nexform-tech/litearm-mujoco-dev:latest` 的分层当作构建缓存复用。当该
+镜像与你的检出一致时，构建命中缓存、几秒内结束；宿主机未登录 `ghcr.io` 时只是
+打印一条警告并从头构建，两种方式得到的环境相同。
 
 不要在容器内以 root 身份执行 `pip install`。容器用户是 `vscode`，用
 `sudo pip install` 会把 root 属主的文件写进挂载的工作区，可能破坏可编辑安装。
@@ -201,7 +204,7 @@ VS Code 会先拉取预构建镜像
 你修改了 `pyproject.toml` 中的依赖而镜像早于该修改，请在容器内刷新安装：
 
 ```bash
-pip install -e ".[dev,mirror]"
+pip install -e ".[dev]"
 ```
 
 ### 验证环境
@@ -213,28 +216,61 @@ python3 examples/01_hello_sim.py
 
 ### 使用 MuJoCo 查看器
 
-只有当容器能访问显示器时，示例才会打开查看器窗口。没有显示器时示例照常
-运行：物理循环正常工作，并打印 "Running headless" 警告。
+示例打开的是 GLFW 窗口，需要 X 显示。容器会转发宿主机的 `DISPLAY` 并挂载
+`/tmp/.X11-unix`，因此在运行 X 会话的 Linux 宿主上无需额外配置即可弹出窗口。
+排查时先确认显示器是否可达：
 
-在 Windows 上安装 VcXsrv 并关闭访问控制，然后在终端会话中设置显示：
+```bash
+xdpyinfo > /dev/null && echo "display reachable"
+```
+
+若 `xdpyinfo` 失败，说明容器看不到显示器：X 服务器还没有授权它。请在**宿主
+机**上授权一次（每个登录会话一次）：
+
+```bash
+xhost +si:localuser:$USER
+```
+
+若 `xdpyinfo` 成功，说明显示器没问题，问题在 GL：MuJoCo 会用服务于该 X 会话
+的那块 GPU 渲染，混合显卡笔记本上通常是核显。容器内执行 `nvidia-smi` 可以确认
+NVIDIA 显卡是否可见。
+
+Windows 和 macOS 没有可挂载的 X11 socket。请运行 X 服务器（VcXsrv，WSL 下可用
+WSLg），并在容器终端里把 `DISPLAY` 指向它：
 
 ```bash
 export DISPLAY=host.docker.internal:0
 python3 examples/02_movej_sim.py
 ```
 
-在 Linux 上把 `DISPLAY` 指向宿主机显示（如 `export DISPLAY=:0`）。如果窗口
-仍无法打开，可尝试 `export MUJOCO_GL=egl`。
+`devcontainer.json` 不存储任何显示配置：它转发启动时从宿主机读取的
+`${localEnv:DISPLAY}`，因此该文件与具体机器无关。
 
-不要把 `DISPLAY` 的值提交到 `devcontainer.json`。显示环境是宿主机的属性，
-不是仓库的属性。
+窗口打不开时**不要**去设 `MUJOCO_GL`。它只决定离屏渲染（`mujoco.Renderer`）的
+后端，对 GLFW 窗口形式的查看器没有任何作用。
+
+宿主机完全没有显示器时（无头服务器，或用 VS Code Remote over SSH），示例无法
+打开窗口：GLFW 在 MuJoCo 的 C 层失败，进程以状态码 1 退出，Python 层的
+`except` 捕获不到任何异常。这种场景请用镜像内置的 `xvfb`：
+
+```bash
+xvfb-run -a python3 examples/02_movej_sim.py
+```
+
+窗口会在虚拟显示上打开、示例能完整跑完，但随后 GLFW 销毁窗口时进程会以
+SIGSEGV（退出码 139）结束。请把 `xvfb-run` 返回的 139 当作销毁阶段的噪声而非
+示例失败，也不要把它接进 CI。
+
+测试套件不需要以上任何一环：所有测试都以 `render=False` 运行。
 
 ### 镜像如何构建
 
-`.github/workflows/devcontainer.yml` 会在每个涉及 `.devcontainer/`、
-`pyproject.toml` 或 `setup.cfg` 的拉取请求上构建镜像并在其中运行测试套件，
-变更合入 `main` 后向 GHCR 推送 `latest` 和一个提交标签。如需手动重建，在
-GitHub 上打开该工作流并点击 **Run workflow**。
+`.github/workflows/devcontainer.yml` 通过 Dev Container CLI 构建镜像——与 VS
+Code 使用的是同一条代码路径——因此无法解析的 `devcontainer.json` 会在 CI 上
+失败，而不是在你的编辑器里失败。该工作流会在每个涉及容器定义、打包元数据或
+源码的拉取请求上运行，在构建出的镜像内跑测试套件，并在每次推送到 `main` 时
+向 GHCR 推送 `latest` 和一个提交标签。如需手动重建，在 GitHub 上打开该工作流
+并点击 **Run workflow**。
 
 ## 已知限制
 
