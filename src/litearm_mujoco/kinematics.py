@@ -166,16 +166,20 @@ class Kinematics:
                     )
                 )
 
-        q_best = None
-        for seed in seeds:
+        q_fallback = None
+        for index, seed in enumerate(seeds):
             q, ok = self._ik_from_seed(
                 pos_d, R_d, seed, max_iter, tol_pos, tol_rot, damping
             )
             if ok:
                 return q, True
-            q_best = q
+            if index == 0:
+                # On total failure return the partial solution from the first
+                # seed (the current pose when q_seed is None), matching the
+                # previous single-seed behaviour rather than the last fallback.
+                q_fallback = q
 
-        return q_best, False
+        return q_fallback, False
 
     def _ik_from_seed(
         self,
