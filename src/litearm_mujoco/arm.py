@@ -252,6 +252,15 @@ class MujocoArm:
                 self._state_cache = self._build_state_dict()
             return dict(self._state_cache)
 
+    def _refresh_state_cache_locked(self) -> None:
+        """Publish the current stop/enable flags to the cached state.
+
+        Caller must hold ``self._lock``. Skipped until the cache exists, so an
+        arm that has never been started still builds it lazily in get_state().
+        """
+        if self._state_cache is not None:
+            self._state_cache = self._build_state_dict()
+
     def _build_state_dict(self) -> dict:
         """Build a state dict from current MuJoCo data."""
         q = self._data.qpos[:self._n_joints].tolist()
@@ -661,10 +670,14 @@ class MujocoArm:
     ) -> bool:
         """Enable zero-gravity (free-drag) mode."""
         self._ensure_running()
-        self._enabled = False
+        with self._lock:
+            self._enabled = False
+            self._refresh_state_cache_locked()
         if duration_s is not None:
             time.sleep(duration_s)
-            self._enabled = True
+            with self._lock:
+                self._enabled = True
+                self._refresh_state_cache_locked()
         return True
 
     def joint_impedance(
@@ -721,29 +734,34 @@ class MujocoArm:
 
     def request_stop(self) -> None:
         """Emergency stop the simulation."""
-        self._stopped = True
         with self._lock:
+            self._stopped = True
             self._data.ctrl[:self._n_joints] = 0.0
+            self._refresh_state_cache_locked()
 
     def clear_stop(self) -> None:
         """Clear the stop condition."""
-        self._stopped = False
+        with self._lock:
+            self._stopped = False
+            self._refresh_state_cache_locked()
 
     # ── Enable / Disable ───────────────────────────────────────────────────────
 
     def enable(self) -> None:
         """Enable motors and hold current pose."""
-        self._enabled = True
-        self._stopped = False
         with self._lock:
+            self._enabled = True
+            self._stopped = False
             q_current = self._data.qpos[:self._n_joints].copy()
+            self._refresh_state_cache_locked()
         self._controller.set_target(q_current)
 
     def disable(self) -> None:
         """Disable motors (arm will drop under gravity)."""
-        self._enabled = False
         with self._lock:
+            self._enabled = False
             self._data.ctrl[:self._n_joints] = 0.0
+            self._refresh_state_cache_locked()
 
     # ── Parameter Tuning ───────────────────────────────────────────────────────
 

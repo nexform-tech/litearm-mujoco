@@ -171,6 +171,31 @@ class TestEmergencyStop:
         state = arm_headless.get_state()
         assert state["state"] == "ready"
 
+    def test_enable_after_stop_refreshes_cache(self):
+        """enable() must clear a stale 'stopping' snapshot."""
+        arm = MujocoArm(render=False)
+        try:
+            arm.request_stop()
+            assert arm.get_state()["state"] == "stopping"
+
+            arm.enable()
+            state = arm.get_state()
+            assert state["state"] == "ready"
+            assert state["watchdog"]["tripped"] is False
+        finally:
+            arm.close()
+
+    def test_disable_refreshes_cache(self):
+        """disable() must not keep reporting the previous 'ready' snapshot."""
+        arm = MujocoArm(render=False)
+        try:
+            assert arm.get_state()["state"] == "ready"
+
+            arm.disable()
+            assert arm.get_state()["state"] == "disconnected"
+        finally:
+            arm.close()
+
 
 # ── Parameters ───────────────────────────────────────────────────────────────────
 
