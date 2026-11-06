@@ -150,10 +150,49 @@ class Kinematics:
         pos_d = np.asarray(pos_d, dtype=float)
         R_d = np.asarray(R_d, dtype=float)
 
-        if q_seed is None:
-            q = self._data.qpos[:self._n_joints].copy()
+        if q_seed is not None:
+            seeds = [np.asarray(q_seed, dtype=float)[:self._n_joints].copy()]
         else:
-            q = np.asarray(q_seed, dtype=float)[:self._n_joints].copy()
+            seeds = [self._data.qpos[:self._n_joints].copy()]
+            if self._n_joints == 7:
+                # Joint4 has an asymmetric range ([-3.089, 0.035] on the real
+                # arm); from a straight-out seed the solver can pin it at the
+                # upper limit. Try elbow-bent starts before giving up.
+                seeds.extend(
+                    np.asarray(s, dtype=float)
+                    for s in (
+                        (0.0, 0.5, 0.0, -0.9, 0.0, 0.5, 0.0),
+                        (0.0, 0.3, 0.0, -1.8, 0.0, -0.4, 0.0),
+                    )
+                )
+
+        q_fallback = None
+        for index, seed in enumerate(seeds):
+            q, ok = self._ik_from_seed(
+                pos_d, R_d, seed, max_iter, tol_pos, tol_rot, damping
+            )
+            if ok:
+                return q, True
+            if index == 0:
+                # On total failure return the partial solution from the first
+                # seed (the current pose when q_seed is None), matching the
+                # previous single-seed behaviour rather than the last fallback.
+                q_fallback = q
+
+        return q_fallback, False
+
+    def _ik_from_seed(
+        self,
+        pos_d: np.ndarray,
+        R_d: np.ndarray,
+        q_seed: np.ndarray,
+        max_iter: int,
+        tol_pos: float,
+        tol_rot: float,
+        damping: float,
+    ) -> Tuple[List[float], bool]:
+        """Run damped least squares from a single seed."""
+        q = q_seed.copy()
 
         saved_qpos = self._data.qpos.copy()
 

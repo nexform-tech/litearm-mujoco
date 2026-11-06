@@ -9,7 +9,7 @@ litearm-mujoco/
 ├── pyproject.toml              # Build config (setuptools)
 ├── setup.cfg                   # Legacy pip compatibility
 ├── setup.py                    # Legacy pip compatibility
-├── MANIFEST.in                 # Package assets (STL + XML)
+├── MANIFEST.in                 # Package assets (OBJ + XML)
 ├── README.md                   # User-facing documentation
 ├── README_zh-CN.md             # Chinese user documentation
 ├── .gitignore
@@ -24,7 +24,7 @@ litearm-mujoco/
 │       ├── trajectory.py       # JointTrajectory / TrajectoryFrame (sim-only extension)
 │       └── assets/
 │           ├── litearm7.xml    # 7-DOF MuJoCo MJCF model (aligned to real URDF)
-│           └── meshes/         # 9 real STL meshes (shipped with package)
+│           └── meshes/         # 9 real OBJ meshes (shipped with package)
 ├── examples/
 │   ├── 01_hello_sim.py         # Standalone sim + read state (no hardware)
 │   ├── 02_movej_sim.py         # Joint & Cartesian motion + FK/IK (no hardware)
@@ -69,7 +69,7 @@ litearm-mujoco/
 | `controller.py` | `JointPIDController` position controller + `TrajectoryGenerator` trapezoidal velocity profiles |
 | `kinematics.py` | `Kinematics` class: FK, IK (damped least squares), path planning (linear/arc/multi-waypoint) |
 | `mirror.py` | `DualArm` (controls real + sim together), `MirrorMode` (sim tracks real arm) |
-| `litearm7.xml` | MuJoCo MJCF model: 7 hinge joints, torque motors, real STL mesh geometry |
+| `litearm7.xml` | MuJoCo MJCF model: 7 hinge joints, torque motors, real OBJ mesh geometry |
 
 ### Data Flow
 
@@ -154,9 +154,9 @@ envelope.
 
 - 7 hinge joints, torque-motor actuated
 - Kinematic chain (link pos/quat, joint axis/range) aligned to the real LiteArm URDF
-- Zero-configuration TCP = [0, 0, 0.814] m (matches real hardware)
-- Mass/inertia/CoM from URDF (total mass ≈ 2.93 kg)
-- Visual geometry: 9 real STL meshes shipped with the package
+- Zero-configuration TCP = [0, 0, 0.783] m (matches the real-arm URDF)
+- Mass/inertia/CoM from URDF (total mass ≈ 2.79 kg)
+- Visual geometry: 9 real OBJ meshes shipped with the package
 - Motors: `gear="1"` (direct torque control)
 
 ## Controller Parameters
