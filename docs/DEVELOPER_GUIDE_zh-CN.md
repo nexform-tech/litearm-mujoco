@@ -9,7 +9,7 @@ litearm-mujoco/
 ├── pyproject.toml              # 构建配置 (setuptools)
 ├── setup.cfg                   # 兼容旧版 pip
 ├── setup.py                    # 兼容旧版 pip
-├── MANIFEST.in                 # 打包资产 (STL + XML)
+├── MANIFEST.in                 # 打包资产 (OBJ + XML)
 ├── README.md                   # 用户文档（英文）
 ├── README_zh-CN.md             # 用户文档（中文）
 ├── .gitignore
@@ -24,7 +24,7 @@ litearm-mujoco/
 │       ├── trajectory.py       # JointTrajectory / TrajectoryFrame（仿真独有扩展）
 │       └── assets/
 │           ├── litearm7.xml    # 7-DOF MuJoCo MJCF 模型（与真机 URDF 对齐）
-│           └── meshes/         # 9 个真实 STL 网格（随包分发）
+│           └── meshes/         # 9 个真实 OBJ 网格（随包分发）
 ├── examples/
 │   ├── 01_hello_sim.py         # 独立仿真 + 读取状态（无需硬件）
 │   ├── 02_movej_sim.py         # 关节与笛卡尔运动 + FK/IK（无需硬件）
@@ -68,7 +68,7 @@ litearm-mujoco/
 | `controller.py` | `JointPIDController` 位置控制器 + `TrajectoryGenerator` 梯形速度剖面 |
 | `kinematics.py` | `Kinematics` 类：正运动学、逆运动学（阻尼最小二乘）、路径规划（直线/圆弧/多航点） |
 | `mirror.py` | `DualArm`（同时控制实臂+仿真）、`MirrorMode`（仿真跟踪实臂） |
-| `litearm7.xml` | MuJoCo MJCF 模型：7 个铰链关节、力矩电机、真实 STL 网格几何 |
+| `litearm7.xml` | MuJoCo MJCF 模型：7 个铰链关节、力矩电机、真实 OBJ 网格几何 |
 
 ### 数据流
 
@@ -145,9 +145,9 @@ import 它，所以连独立仿真在没装它时也 import 不进来。这是�
 
 - 7 个铰链关节，力矩电机驱动
 - 运动学链（连杆 pos/quat、关节 axis/range）与真实 LiteArm URDF 对齐
-- 零位 TCP = [0, 0, 0.814] m（与真机一致）
-- 质量/惯量/质心取自 URDF（总质量约 2.93 kg）
-- 视觉几何：9 个真实 STL 网格，随包分发
+- 零位 TCP = [0, 0, 0.783] m（与真机 URDF 一致）
+- 质量/惯量/质心取自 URDF（总质量约 2.79 kg）
+- 视觉几何：9 个真实 OBJ 网格，随包分发
 - 电机：`gear="1"`（直接力矩控制）
 
 ## 控制器参数

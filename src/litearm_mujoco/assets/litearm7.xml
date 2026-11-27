@@ -1,6 +1,9 @@
-<!-- litearm7.xml — 由真实 LiteArm URDF（litearm_description.urdf）生成，运动学+网格+质量与真机对齐。 -->
+<!-- litearm7.xml — 由 litearm-description 生成（nexform-tech/litearm-description @ f94eafe，
+     SE/litearm_description/urdf/litearm_description.urdf）。
+     关节坐标、质量、惯量逐项对应；网格为原 STL 简化到 ~20k 面后的 OBJ（MuJoCo STL 解码上限
+     200000 面）。base_link 固定；tcp 站点与 ee_link 坐标系重合。 -->
 <mujoco model="litearm7">
-  <compiler angle="radian" eulerseq="XYZ" autolimits="true" />
+  <compiler angle="radian" autolimits="true" />
   <option timestep="0.002" gravity="0 0 -9.81" />
   <default>
     <joint limited="true" damping="0.1" armature="0.01" />
@@ -8,15 +11,15 @@
     <motor ctrllimited="true" forcelimited="true" />
   </default>
   <asset>
-    <mesh name="base_link" file="meshes/base_link.STL" />
-    <mesh name="Link1" file="meshes/Link1.STL" />
-    <mesh name="Link2" file="meshes/Link2.STL" />
-    <mesh name="Link3" file="meshes/Link3.STL" />
-    <mesh name="Link4" file="meshes/Link4.STL" />
-    <mesh name="Link5" file="meshes/Link5.STL" />
-    <mesh name="Link6" file="meshes/Link6.STL" />
-    <mesh name="Link7" file="meshes/Link7.STL" />
-    <mesh name="ee_frame_link" file="meshes/ee_frame_link.STL" />
+    <mesh name="base_link" file="meshes/base_link.obj" />
+    <mesh name="ee_link" file="meshes/ee_link.obj" />
+    <mesh name="joint1" file="meshes/joint1.obj" />
+    <mesh name="joint2" file="meshes/joint2.obj" />
+    <mesh name="joint3" file="meshes/joint3.obj" />
+    <mesh name="joint4" file="meshes/joint4.obj" />
+    <mesh name="joint5" file="meshes/joint5.obj" />
+    <mesh name="joint6" file="meshes/joint6.obj" />
+    <mesh name="joint7" file="meshes/joint7.obj" />
     <material name="mat_link" rgba="0.75 0.78 0.82 1" />
     <material name="mat_ee" rgba="0.9 0.5 0.2 1" />
     <material name="mat_floor" rgba="0.4 0.4 0.4 1" />
@@ -26,43 +29,58 @@
     <light name="light1" pos="2 2 3" directional="true" />
     <light name="light2" pos="-2 -2 2" directional="true" />
     <!-- base_link（固定） -->
-    <geom name="base_vis" type="mesh" mesh="base_link" material="mat_link" />
-    <body name="Link1" pos="0 0 0.149" quat="-3.673205103e-06 0 0 1">
-      <inertial pos="-0.0003266769414 0.003206149381 -0.009868799005" quat="0.9917254975 -0.1249934512 0.01723752576 -0.02366521717" mass="0.9279580618" diaginertia="0.001021411002 0.0009867097511 0.0008808684543" />
-      <joint name="joint1" type="hinge" axis="0 0 1" range="-2.82 2.839" />
-      <geom name="Link1_vis" type="mesh" mesh="Link1" material="mat_link" />
-    <body name="Link2" pos="0 0 0" quat="-2.597343467e-06 2.597353008e-06 -0.7071080799 0.7071054825">
-      <inertial pos="1.719625974e-06 -0.07170617607 -0.0006466704962" quat="0.4979006007 0.5008964018 -0.5021526008 0.4990396297" mass="0.5197269504" diaginertia="0.000392469178 0.0003712572462 0.0001833392898" />
-      <joint name="joint2" type="hinge" axis="0 0 -1" range="-1.78 1.817" />
-      <geom name="Link2_vis" type="mesh" mesh="Link2" material="mat_link" />
-    <body name="Link3" pos="0 -0.1195 0" quat="0.7071054825 0.7071080799 0 0">
-      <inertial pos="0.001099324975 0.02236114636 0.1401565169" quat="0.9912850445 -0.1289193089 0.002782452873 -0.02694495026" mass="0.6041050416" diaginertia="0.002497730478 0.002455014628 0.000277909431" />
-      <joint name="joint3" type="hinge" axis="0 0 1" range="-2.83 2.87" />
-      <geom name="Link3_vis" type="mesh" mesh="Link3" material="mat_link" />
-    <body name="Link4" pos="-7e-05 0.038 0.18" quat="0.7071054825 0 0.7071080799 0">
-      <inertial pos="-0.05250661108 -0.03392909786 0.000189271015" quat="0.3962351498 0.3739887923 0.5817897274 0.6038632315" mass="0.3468658477" diaginertia="0.0004389661302 0.0003452133784 0.0002420584354" />
-      <joint name="joint4" type="hinge" axis="0 0 1" range="-3.1325 0.647" />
-      <geom name="Link4_vis" type="mesh" mesh="Link4" material="mat_link" />
-    <body name="Link5" pos="-0.09145 -0.038 0" quat="-2.597343467e-06 0.7071054825 -2.597353008e-06 -0.7071080799">
-      <inertial pos="-0.0001671617485 3.005350728e-06 0.0650221775" quat="0.7067039143 -0.002196239169 -0.002681721526 0.7075009275" mass="0.08873820263" diaginertia="0.000174854913 0.0001595955246 3.228043198e-05" />
-      <joint name="joint5" type="hinge" axis="0 0 1" range="-2.853 2.8587" />
-      <geom name="Link5_vis" type="mesh" mesh="Link5" material="mat_link" />
-    <body name="Link6" pos="-0.00025 0 0.131" quat="-2.597343467e-06 0.7071054825 -2.597353008e-06 -0.7071080799">
-      <inertial pos="-0.031037484 0.001105908629 0.000966084392" quat="-0.1617608688 0.6708372064 -0.1793181576 0.7011817611" mass="0.312523807" diaginertia="0.0004108564238 0.0004103805586 0.0001516335153" />
-      <joint name="joint6" type="hinge" axis="0 0 1" range="-1.568 1.619" />
-      <geom name="Link6_vis" type="mesh" mesh="Link6" material="mat_link" />
-    <body name="Link7" pos="-0.062 0.00031 -0.00025" quat="0.4999981634 0.5 0.5 -0.5000018366">
-      <inertial pos="-7.430086572e-05 -0.02842356501 -0.001134359735" quat="0.7089838879 0.7052225442 -0.001272856674 -0.001178894235" mass="0.1330285634" diaginertia="0.000171285833 0.000133141098 0.0001062547992" />
-      <joint name="joint7" type="hinge" axis="0 0 1" range="-1.59 1.623" />
-      <geom name="Link7_vis" type="mesh" mesh="Link7" material="mat_link" />
-      <geom name="ee_vis" type="mesh" mesh="ee_frame_link" material="mat_ee" pos="-5.421010862e-20 -0.08101909106 2.927345866e-18" quat="1.14269488e-15 -1.14274909e-15 -0.7071067812 0.7071067812" />
-      <site name="tcp" type="sphere" size="0.008" pos="0 -0.081019 0" quat="0 0 -0.7071067812 0.7071067812" rgba="1 0 0 1" />
-    </body>
-    </body>
-    </body>
-    </body>
-    </body>
-    </body>
+    <body name="base_link">
+      <inertial pos="2.81752472512e-05 -6.21980479291e-07 0.0355224094675" mass="0.364380717062648"
+                fullinertia="0.000273641151213 0.000251821003104 0.00037775932562 1.67098713948e-08 -1.09565994984e-08 -3.36863189944e-09" />
+      <geom name="base_link_vis" type="mesh" mesh="base_link" material="mat_link" />
+      <body name="joint1" pos="0 0 0.06975" quat="1 0 0 0">
+        <joint name="joint1" type="hinge" axis="0 0 1" range="-2.827 2.827" />
+        <inertial pos="-0.000193702794391 -0.000144114740922 0.0415560180015" mass="0.636061100335262"
+                  fullinertia="0.00055493590205 0.000356856391047 0.000409413887893 -4.51487655009e-08 -1.0199728042e-06 -1.95767398551e-06" />
+        <geom name="joint1_vis" type="mesh" mesh="joint1" material="mat_link" />
+        <body name="joint2" pos="0 0 0.0635" quat="0.499998163397 0.499999999997 -0.500001836603 -0.499999999997">
+          <joint name="joint2" type="hinge" axis="0 0 1" range="-1.745 1.745" />
+          <inertial pos="0.000109593690778 0.0650406262634 0.00200721976927" mass="0.296281105636482"
+                    fullinertia="0.000270936717143 0.000100407058034 0.000286852309424 -2.30306782741e-08 -2.70975700809e-07 -6.69931874728e-08" />
+          <geom name="joint2_vis" type="mesh" mesh="joint2" material="mat_link" />
+          <body name="joint3" pos="0 0.1135 0" quat="-2.59734346696e-06 -2.59735300756e-06 0.707108079855 0.707105482506">
+            <joint name="joint3" type="hinge" axis="0 0 1" range="-2.827 2.827" />
+            <inertial pos="0.015116311047 1.28732078291e-05 0.126779005395" mass="0.376902688786702"
+                      fullinertia="0.000376663293951 0.000430672465627 0.000111040747665 -1.4376802512e-06 -2.86088497692e-05 -1.30040412216e-06" />
+            <geom name="joint3_vis" type="mesh" mesh="joint3" material="mat_link" />
+            <body name="joint4" pos="0.038 0 0.186" quat="0.707105482511 0.707108079859 0 0">
+              <joint name="joint4" type="hinge" axis="0 0 1" range="-3.089 0.035" />
+              <inertial pos="-0.0309491778246 0.0463711873883 0.00157814188021" mass="0.285335817911565"
+                        fullinertia="0.000163897556025 0.000135611687203 0.000225975039727 5.04686660055e-05 5.37856557249e-07 -4.94793867316e-07" />
+              <geom name="joint4_vis" type="mesh" mesh="joint4" material="mat_link" />
+              <body name="joint5" pos="-0.038 0.08545 0" quat="-2.59734346696e-06 -2.59735300756e-06 0.707108079855 0.707105482506">
+                <joint name="joint5" type="hinge" axis="0 0 1" range="-2.827 2.827" />
+                <inertial pos="-1.76702794687e-05 0.00042651000505 0.095109835008" mass="0.352654558225702"
+                          fullinertia="0.000173929860876 0.000203095536622 7.25590513907e-05 -3.22310063328e-08 5.61419665918e-08 3.31113262928e-07" />
+                <geom name="joint5_vis" type="mesh" mesh="joint5" material="mat_link" />
+                <body name="joint6" pos="0 0 0.13705" quat="0.707105482511 0.707108079859 0 0">
+                  <joint name="joint6" type="hinge" axis="0 0 -1" range="-1.571 1.571" />
+                  <inertial pos="-0.000202518687183 0.0525238727977 0.00178388122861" mass="0.298759845757099"
+                            fullinertia="0.000327555222283 0.000173286577179 0.00031378344682 -1.39710589093e-05 1.17541296357e-06 1.33181143129e-05" />
+                  <geom name="joint6_vis" type="mesh" mesh="joint6" material="mat_link" />
+                  <body name="joint7" pos="0 0.074 0" quat="0.499998163397 0.499999999997 0.500001836603 0.499999999997">
+                    <joint name="joint7" type="hinge" axis="0 0 1" range="-1.571 1.571" />
+                    <inertial pos="0.0134504979693 -9.07149715247e-05 0.00199419237138" mass="0.152315157261345"
+                              fullinertia="4.49052523652e-05 4.43694914269e-05 6.7734811513e-05 7.06299437042e-08 2.88694676251e-07 -3.12258040604e-07" />
+                    <geom name="joint7_vis" type="mesh" mesh="joint7" material="mat_link" />
+                    <body name="ee_link" pos="0.05375 0 0" quat="0.707105482511 0 0.707108079859 0">
+                      <inertial pos="2.70261255596e-09 -4.63278928537e-10 -0.00350345068725" mass="0.0284157347604788"
+                                fullinertia="6.67966983468e-06 6.67966982268e-06 1.29103138361e-05 1.67474376585e-13 2.71971370018e-13 -3.38691299992e-13" />
+                      <geom name="ee_link_vis" type="mesh" mesh="ee_link" material="mat_ee" />
+                      <site name="tcp" type="sphere" size="0.008" pos="0 0 0" rgba="1 0 0 1" />
+                    </body>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
     </body>
   </worldbody>
   <actuator>

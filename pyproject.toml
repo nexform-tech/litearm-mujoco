@@ -30,7 +30,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-"litearm_mujoco" = ["assets/*.xml", "assets/meshes/*.STL"]
+"litearm_mujoco" = ["assets/*.xml", "assets/meshes/*.obj"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -98,6 +98,52 @@ class TestKinematics:
         assert ok
         assert np.allclose(q_sol, self.Q_HOME, atol=0.03)
 
+    @staticmethod
+    def _spy_seeds(monkeypatch, kin):
+        """Record the seeds passed to the per-seed solver."""
+        calls = []
+        original = kin._ik_from_seed
+
+        def spy(pos_d, R_d, q_seed, *args):
+            calls.append(np.asarray(q_seed, dtype=float))
+            return original(pos_d, R_d, q_seed, *args)
+
+        monkeypatch.setattr(kin, "_ik_from_seed", spy)
+        return calls
+
+    def test_ik_explicit_seed_tries_one_seed(self, arm_headless, monkeypatch):
+        """An explicit q_seed must use the single-seed path."""
+        calls = self._spy_seeds(monkeypatch, arm_headless._kinematics)
+        pos, R = arm_headless.fk(self.Q_HOME)
+
+        arm_headless.ik(pos, R, self.Q_HOME)
+
+        assert len(calls) == 1
+        assert np.allclose(calls[0], self.Q_HOME)
+
+    def test_ik_auto_seed_tries_fallbacks(self, arm_headless, monkeypatch):
+        """Without a seed, the solver retries from bent seeds on failure."""
+        calls = self._spy_seeds(monkeypatch, arm_headless._kinematics)
+
+        # Unreachable target: every seed must fail.
+        q_sol, ok = arm_headless.ik([10.0, 10.0, 10.0], np.eye(3).tolist())
+
+        assert ok is False
+        assert len(q_sol) == 7
+        assert len(calls) == 3
+
+    def test_ik_failure_returns_first_seed_partial(self, arm_headless):
+        """Total failure returns the first seed's partial solution."""
+        target = ([10.0, 10.0, 10.0], np.eye(3).tolist())
+
+        q_seeded, ok_seeded = arm_headless.ik(*target, q_seed=[0.0] * 7)
+        q_auto, ok_auto = arm_headless.ik(*target)
+
+        assert ok_seeded is False
+        assert ok_auto is False
+        # Both start from the zero pose, so the fallback must match.
+        assert np.allclose(q_seeded, q_auto)
+
     def test_plan_movel(self, arm_headless):
         """plan_movel returns a path."""
         pos, R = arm_headless.fk(self.Q_HOME)
